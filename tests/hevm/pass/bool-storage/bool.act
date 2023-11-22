@@ -1,0 +1,11 @@
+constructor of C
+interface constructor()
+iff CALLVALUE == 0
+creates
+  bool b := false
+
+behaviour f of C
+interface f(bool v)
+iff CALLVALUE == 0
+storage
+  b => v

@@ -1,14 +1,10 @@
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE ViewPatterns #-}
-{-# LANGUAGE PatternSynonyms #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
@@ -127,7 +123,7 @@ translateActConstr (Act _ _) _ = error "TODO multiple contracts"
 
 translateConstructor :: Layout -> Constructor -> BS.ByteString -> (Id, [EVM.Expr EVM.End], Calldata, Sig)
 translateConstructor layout (Constructor cid iface preconds _ _ upds) bytecode =
-  (cid, [EVM.Success (snd calldata <> (fmap (toProp layout) $ preconds)) mempty (EVM.ConcreteBuf bytecode) (updatesToExpr layout cid upds initmap)],
+  (cid, [EVM.Success (snd calldata <> (fmap (toProp layout) preconds)) mempty (EVM.ConcreteBuf bytecode) (updatesToExpr layout cid upds initmap)],
   calldata, ifaceToSig iface)
   where
     calldata = makeCtrCalldata iface
@@ -278,8 +274,9 @@ toProp layout = \case
   (NEq _ SBoolean e1 e2) -> EVM.PNeg $ op2 EVM.PEq e1 e2
   (NEq _ _ _ _) -> error "unsupported"
   (ITE _ _ _ _) -> error "Internal error: expecting flat expression"
-  (Var _ _ _ _) -> error "TODO"
-  (TEntry _ _ _) -> error "TODO" -- EVM.SLoad addr idx
+  e@(Var {}) -> error $ "TODO: " <> show e
+  e@(TEntry _ Pre _) -> EVM.PEq (toExpr layout e) (EVM.Lit 1)
+  e@(TEntry {}) -> error $ "TODO: " <> show e -- EVM.SLoad addr idx
   (InRange _ t e) -> toProp layout (inRange t e)
   where
     op2 :: forall a b. (EVM.Expr (ExprType b) -> EVM.Expr (ExprType b) -> a) -> Exp b -> Exp b -> a
@@ -341,8 +338,13 @@ toExpr layout = \case
 
   (Var _ SInteger typ x) ->  -- TODO other types
     fromCalldataFramgment $ symAbiArg (T.pack x) typ
+  (Var _ SBoolean typ x) ->
+    fromCalldataFramgment $ symAbiArg (T.pack x) typ
 
   (TEntry _ _ (Item SInteger _ ref)) ->
+    let (addr, slot) = refOffset layout ref in
+    EVM.SLoad slot (EVM.AbstractStore addr)
+  (TEntry _ _ (Item SBoolean _ ref)) ->
     let (addr, slot) = refOffset layout ref in
     EVM.SLoad slot (EVM.AbstractStore addr)
   e ->  error $ "TODO: " <> show e
