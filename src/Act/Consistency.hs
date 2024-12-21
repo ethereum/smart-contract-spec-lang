@@ -56,7 +56,7 @@ mkExhaustiveAssertion caseconds =
 
 -- | Create a query for cases
 mkCaseQuery :: ([Exp ABoolean] -> Exp ABoolean) -> [Behaviour] -> (Id, SMTExp, (SolverInstance -> IO Model))
-mkCaseQuery props behvs@((Behaviour _ _ (Interface ifaceName decls) preconds _ _ _ _):_) =
+mkCaseQuery props behvs@((Behaviour _ _ (Interface ifaceName decls) _ preconds _ _ _ _):_) =
   (ifaceName, mkSMT, getModel)
   where
     locs = nub $ concatMap locsFromExp (preconds <> caseconds)
@@ -103,7 +103,7 @@ checkCases (Act _ contracts) solver' smttimeout debug = do
 
     where
 
-      sameIface (Behaviour _ _ iface  _ _ _ _ _) (Behaviour _ _ iface' _ _ _ _ _) =
+      sameIface (Behaviour _ _ iface _ _ _ _ _ _) (Behaviour _ _ iface' _ _ _ _ _ _) =
         makeIface iface == makeIface iface'
 
       checkRes :: String -> (Id, SMT.SMTResult) -> IO ()

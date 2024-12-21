@@ -23,15 +23,21 @@ newtype Act = Main [Contract]
 data Contract = Contract Definition [Transition]
   deriving (Eq, Show)
 
-data Definition = Definition Pn Id Interface [IffH] Creates Ensures Invariants
+data Definition = Definition Pn Id Interface [Pointer] [IffH] Creates Ensures Invariants
   deriving (Eq, Show)
 
-data Transition = Transition Pn Id Id Interface [IffH] Cases Ensures
+data Transition = Transition Pn Id Id Interface [Pointer] [IffH] Cases Ensures
   deriving (Eq, Show)
 
 type Ensures = [Expr]
 
 type Invariants = [Expr]
+
+data Pointer = PointsTo Pn Id Id
+  deriving (Eq, Ord)
+
+instance Show Pointer where
+  show (PointsTo _ x c) = "(" <> x <> "|->" <> c <> ")"
 
 data Interface = Interface Id [Decl]
   deriving (Eq, Ord)

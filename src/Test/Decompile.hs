@@ -114,12 +114,9 @@ checkDecompilation contract src = do
       T.putStrLn es
       assertBool "decompilation should succeed" False
     Right s -> do
-      -- putStrLn (prettyAct s)
       case compile (prettyAct s) of
         Failure es -> do
           prettyErrs (prettyAct s) (NE.toList es)
-          -- putStrLn (prettyAct s)
           assertBool "decompiled output does not typecheck" False
         Success _ -> do
-          --putStrLn (prettyAct s)
           assertBool "" True

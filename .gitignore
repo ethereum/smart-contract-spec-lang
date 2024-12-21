@@ -30,3 +30,6 @@ doc/book
 
 # direnv
 .direnv/
+
+*~
+*#

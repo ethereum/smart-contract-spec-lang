@@ -1,0 +1,80 @@
+// contract A
+constructor of A
+interface constructor(uint z)
+
+iff
+   CALLVALUE == 0
+
+creates
+   uint x := z
+
+
+behaviour x of A
+interface x()
+
+iff
+   CALLVALUE == 0
+
+returns
+   pre(x)
+
+behaviour set_x of A
+interface set_x(uint z)
+
+iff 
+   CALLVALUE == 0
+
+storage
+  x => z
+
+// contract B
+constructor of B
+interface constructor(uint z)
+iff
+   CALLVALUE == 0
+
+creates
+   uint y := z
+   A a := create A(0)
+
+behaviour y of B
+interface y()
+
+iff
+   CALLVALUE == 0
+
+returns
+   pre(y)
+
+behaviour a of B
+interface a()
+
+iff
+   CALLVALUE == 0
+
+returns
+   pre(a)
+
+
+// contract C
+constructor of C
+interface constructor(address y)
+pointers
+   y |-> B
+
+iff
+   CALLVALUE == 0
+
+creates
+   A a := y.a
+   B b := y 
+
+behaviour change of C
+interface change()
+
+iff
+
+  CALLVALUE == 0
+  
+storage
+  b.a.x => 17

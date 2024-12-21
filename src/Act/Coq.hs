@@ -5,7 +5,7 @@
  - unsupported features:
  - + bytestrings
  - + external storage
- - + specifications for multiple contracts
+ - + casting from addresses to contract
  -
  -}
 
@@ -52,8 +52,8 @@ contractCode store (Contract ctor@Constructor{..} behvs) = T.unlines $
   [ "Module " <> T.pack _cname <> ".\n" ]
   <> [ stateRecord ]
   <> [ base store ctor ]
-  <> (concat (evalSeq (transition store) <$> groups behvs))
-  <> (filter ((/=) "") $ concat (evalSeq retVal <$> groups behvs))
+  <> (concatMap (evalSeq (transition store)) (groups behvs))
+  <> (filter ((/=) "") $ concatMap (evalSeq retVal) (groups behvs))
   <> [ reachable ctor (groups behvs) ]
   <> [ "End " <> T.pack _cname <> "." ]
   where
@@ -77,7 +77,7 @@ reachable constructor behvs = inductive
 
 -- | non-recursive constructor for the reachable relation
 baseCase :: Constructor -> T.Text
-baseCase (Constructor name i@(Interface _ decls) conds _ _ _ ) =
+baseCase (Constructor name i@(Interface _ decls) _ conds _ _ _ ) =
   T.pack name <> baseSuffix <> " : " <> universal <> "\n" <> constructorBody
   where
     baseval = parens $ T.pack name <> " " <> envVar <> " " <> arguments i
@@ -93,7 +93,7 @@ baseCase (Constructor name i@(Interface _ decls) conds _ _ _ ) =
 
 -- | recursive constructor for the reachable relation
 reachableStep :: Behaviour -> Fresh T.Text
-reachableStep (Behaviour name _ i conds cases _ _ _) =
+reachableStep (Behaviour name _ i _ conds cases _ _ _) =
   fresh name >>= continuation where
   continuation name' =
     return $ name'
@@ -113,20 +113,20 @@ reachableStep (Behaviour name _ i conds cases _ _ _) =
 
 -- | definition of a base state
 base :: Store -> Constructor -> T.Text
-base store (Constructor name i _ _ _ updates) =
+base store (Constructor name i _ _ _ _ updates) =
   definition (T.pack name) (envDecl <> " " <> interface i) $
     stateval store name (\_ t -> defaultSlotValue t) updates
 
 transition :: Store -> Behaviour -> Fresh T.Text
-transition store (Behaviour name cname i _ _ _ rewrites _) = do
+transition store (Behaviour name cname i _ _ _ _ rewrites _) = do
   name' <- fresh name
   return $ definition name' (envDecl <> " " <> stateDecl <> " " <> interface i) $
-    stateval store cname (\ref _ -> storageRef ref) rewrites
+    stateval store cname (\r _ -> ref r) rewrites
 
 -- | inductive definition of a return claim
 -- ignores claims that do not specify a return value
 retVal :: Behaviour -> Fresh T.Text
-retVal (Behaviour name _ i conds cases _ _ (Just r)) =
+retVal (Behaviour name _ i _ conds cases _ _ (Just r)) =
   fresh name >>= continuation where
   continuation name' = return $ inductive
     (name' <> returnSuffix)
@@ -145,8 +145,9 @@ retVal _ = return ""
 
 -- | produce a state value from a list of storage updates
 -- 'handler' defines what to do in cases where a given name isn't updated
-stateval :: Store -> Id -> (StorageRef -> SlotType -> T.Text) -> [StorageUpdate] -> T.Text
-stateval store contract handler updates = T.unwords $ stateConstructor : fmap (\(n, (t, _)) -> updateVar store updates handler (SVar nowhere contract n) t) (M.toList store')
+stateval :: Store -> Id -> (Ref Storage -> SlotType -> T.Text) -> [StorageUpdate] -> T.Text
+stateval store contract handler updates = T.unwords $
+  stateConstructor : fmap (\(n, (t, _)) -> updateVar store updates handler (SVar nowhere contract n) t) (M.toList store')
   where
     store' = contractStore contract store
 
@@ -156,21 +157,21 @@ contractStore contract store = case M.lookup contract store of
   Nothing -> error "Internal error: cannot find constructor in store"
 
 
--- | Check is an update update a specific strage reference
-eqRef :: StorageRef -> StorageUpdate -> Bool
-eqRef ref (Update _ (Item _ _ ref') _) = ref == ref'
+-- | Check is an update update a specific storage reference
+eqRef :: Ref Storage -> StorageUpdate -> Bool
+eqRef r (Update _ (Item _ _ r') _) = r == r'
 
 -- | Check if an update updates a location that has a given storage
 -- reference as a base
-baseRef :: StorageRef -> StorageUpdate -> Bool
-baseRef baseref (Update _ (Item _ _ ref) _) = hasBase ref
+baseRef :: Ref Storage -> StorageUpdate -> Bool
+baseRef baseref (Update _ (Item _ _ r) _) = hasBase r
   where
     hasBase (SVar _ _ _) = False
-    hasBase (SMapping _ ref' _) = ref' == baseref || hasBase ref'
-    hasBase (SField _ ref' _ _) = ref' == baseref || hasBase ref'
+    hasBase (SMapping _ r' _) = r' == baseref || hasBase r'
+    hasBase (SField _ r' _ _) = r' == baseref || hasBase r'
 
 
-updateVar :: Store -> [StorageUpdate] -> (StorageRef -> SlotType -> T.Text) -> StorageRef -> SlotType -> T.Text
+updateVar :: Store -> [StorageUpdate] -> (Ref Storage -> SlotType -> T.Text) -> Ref Storage -> SlotType -> T.Text
 updateVar store updates handler focus t@(StorageValue (ContractType cid)) =
   case (constructorUpdates, fieldUpdates) of
     -- Only some fields are updated
@@ -216,7 +217,6 @@ updateVar _ updates handler focus t@(StorageMapping xs _) = parens $
         SInteger -> " =? "
         SBoolean -> " =?? "
         SByteStr -> error "bytestrings not supported"
-        SContract -> error "contracts cannot be mapping arguments"
 
 
 -- | produce a block of declarations from an interface
@@ -252,7 +252,6 @@ returnType :: TypedExp -> T.Text
 returnType (TExp SInteger _) = "Z"
 returnType (TExp SBoolean _) = "bool"
 returnType (TExp SByteStr _) = error "bytestrings not supported"
-returnType (TExp SContract _) = error "Internal error: return type cannot be contract"
 
 -- | default value for a given type
 -- this is used in cases where a value is not set in the constructor
@@ -277,11 +276,9 @@ abiVal _ = error "TODO: missing default values"
 
 -- | coq syntax for an expression
 coqexp :: Exp a -> T.Text
-
 -- booleans
 coqexp (LitBool _ True)  = "true"
 coqexp (LitBool _ False) = "false"
-coqexp (Var _ SBoolean _ name)  = T.pack name
 coqexp (And _ e1 e2)  = parens $ "andb "   <> coqexp e1 <> " " <> coqexp e2
 coqexp (Or _ e1 e2)   = parens $ "orb"     <> coqexp e1 <> " " <> coqexp e2
 coqexp (Impl _ e1 e2) = parens $ "implb"   <> coqexp e1 <> " " <> coqexp e2
@@ -295,7 +292,6 @@ coqexp (GEQ _ e1 e2)  = parens $ coqexp e2 <> " <=? " <> coqexp e1
 
 -- integers
 coqexp (LitInt _ i) = T.pack $ show i
-coqexp (Var _ SInteger _ name) = T.pack name
 coqexp (Add _ e1 e2) = parens $ coqexp e1 <> " + " <> coqexp e2
 coqexp (Sub _ e1 e2) = parens $ coqexp e1 <> " - " <> coqexp e2
 coqexp (Mul _ e1 e2) = parens $ coqexp e1 <> " * " <> coqexp e2
@@ -310,7 +306,7 @@ coqexp (UIntMax _ n) = parens $ "UINT_MAX " <> T.pack (show n)
 coqexp (InRange _ t e) = coqexp (bound t e)
 
 -- polymorphic
-coqexp (TEntry _ w e) = entry e w
+coqexp (TEntry _ w _ e) = entry e w
 coqexp (ITE _ b e1 e2) = parens $ "if "
                                <> coqexp b
                                <> " then "
@@ -323,12 +319,10 @@ coqexp (ITE _ b e1 e2) = parens $ "if "
 -- as the corresponding Haskell constructor
 coqexp (IntEnv _ envVal) = parens $ T.pack (show envVal) <> " " <> envVar
 -- Contracts
-coqexp (Var _ SContract _ name) = T.pack name
 coqexp (Create _ cid args) = parens $ T.pack cid <> "." <> T.pack cid <> " " <> envVar <> " " <> coqargs args
 -- unsupported
 coqexp Cat {} = error "bytestrings not supported"
 coqexp Slice {} = error "bytestrings not supported"
-coqexp (Var _ SByteStr _ _) = error "bytestrings not supported"
 coqexp ByStr {} = error "bytestrings not supported"
 coqexp ByLit {} = error "bytestrings not supported"
 coqexp ByEnv {} = error "bytestrings not supported"
@@ -348,21 +342,23 @@ coqprop (LEQ _ e1 e2)  = parens $ coqexp e1 <> " <= " <> coqexp e2
 coqprop (GT _ e1 e2)   = parens $ coqexp e1 <> " > "  <> coqexp e2
 coqprop (GEQ _ e1 e2)  = parens $ coqexp e1 <> " >= " <> coqexp e2
 coqprop (InRange _ t e) = coqprop (bound t e)
+
 coqprop e = error "ill formed proposition: " <> T.pack (show e)
 
 -- | coq syntax for a typed expression
 typedexp :: TypedExp -> T.Text
 typedexp (TExp _ e) = coqexp e
 
-entry :: TStorageItem a -> When -> T.Text
+entry :: TItem k a -> When -> T.Text
 entry (Item SByteStr _ _) _ = error "bytestrings not supported"
-entry _ Post = error "TODO: missing support for poststate references in coq backend"
-entry (Item _ _ ref) _ = storageRef ref
+entry e Post = error $ "TODO: missing support for poststate references in coq backend. Entry: \n" <> show e
+entry (Item _ _ r) _ = ref r
 
-storageRef :: StorageRef -> T.Text
-storageRef (SVar _ _ name) = parens $ T.pack name <> " " <> stateVar
-storageRef (SMapping _ ref ixs) = parens $ storageRef ref <> " " <> coqargs ixs
-storageRef (SField _ ref cid name) = parens $ T.pack cid <> "." <> T.pack name <> " " <> storageRef ref
+ref :: Ref k -> T.Text
+ref (SVar _ _ name) = parens $ T.pack name <> " " <> stateVar
+ref (CVar _ _ name) = T.pack name
+ref (SMapping _ r ixs) = parens $ ref r <> " " <> coqargs ixs
+ref (SField _ r cid name) = parens $ T.pack cid <> "." <> T.pack name <> " " <> ref r
 
 -- | coq syntax for a list of arguments
 coqargs :: [TypedExp] -> T.Text

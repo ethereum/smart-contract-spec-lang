@@ -60,7 +60,7 @@ notAtPosn p = find valid
 findSuccess :: Error e a -> [Error e a] -> Error e a
 findSuccess d comp = case find valid comp of
                        Just a -> a
-                       Nothing -> d
+                       Nothing -> foldl (*>) d comp
   where
     valid (Success _) = True
     valid _ = False

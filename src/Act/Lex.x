@@ -40,12 +40,14 @@ tokens :-
   iff $white+ in $white+ range          { mk IFFINRANGE }
   inRange                               { mk INRANGE }
   iff                                   { mk IFF }
+  pointers                              { mk POINTERS }
   and                                   { mk AND }
   not                                   { mk NOT }
   or                                    { mk OR }
   true                                  { mk TRUE }
   false                                 { mk FALSE }
   create                                { mk CREATE }
+  as                                    { mk AS }
   mapping                               { mk MAPPING }
   ensures                               { mk ENSURES }
   invariants                            { mk INVARIANTS }
@@ -88,6 +90,7 @@ tokens :-
   -- symbols
   ":="                                  { mk ASSIGN }
   "=>"                                  { mk ARROW }
+  "|->"                                 { mk POINTSTO }
   "=="                                  { mk EQEQ }
   "=/="                                 { mk NEQ }
   ">="                                  { mk GE }
@@ -135,12 +138,15 @@ data LEX =
   | IFFINRANGE
   | INRANGE
   | IFF
+  | POINTERS
+  | POINTSTO
   | AND
   | NOT
   | OR
   | TRUE
   | FALSE
   | CREATE
+  | AS
   | MAPPING
   | ENSURES
   | INVARIANTS

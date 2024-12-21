@@ -13,7 +13,7 @@ import qualified Act.Syntax.TimeAgnostic as Agnostic
 import Act.Syntax.TimeAgnostic (Timing(..),setPre,setPost)
 
 -- Reexports
-import Act.Syntax.TimeAgnostic as Act.Syntax.Annotated hiding (Timing(..),Timable(..),Time,Neither,Act,Contract,Invariant,InvariantPred,Constructor,Behaviour,StorageUpdate,StorageLocation,TStorageItem,Exp,TypedExp,StorageRef)
+import Act.Syntax.TimeAgnostic as Act.Syntax.Annotated hiding (Timing(..),Timable(..),Time,Neither,Act,Contract,Invariant,InvariantPred,Constructor,Behaviour,StorageUpdate,StorageLocation,TItem,Exp,TypedExp,Ref)
 import Act.Syntax.TimeAgnostic as Act.Syntax.Annotated (pattern Act, pattern Contract, pattern Invariant, pattern Constructor, pattern Behaviour, pattern Exp)
 
 
@@ -26,8 +26,8 @@ type Constructor     = Agnostic.Constructor     Timed
 type Behaviour       = Agnostic.Behaviour       Timed
 type StorageUpdate   = Agnostic.StorageUpdate   Timed
 type StorageLocation = Agnostic.StorageLocation Timed
-type StorageRef      = Agnostic.StorageRef      Timed
-type TStorageItem  a = Agnostic.TStorageItem  a Timed
+type Ref           k = Agnostic.Ref           k Timed
+type TItem       k a = Agnostic.TItem       k a Timed
 type Exp           a = Agnostic.Exp           a Timed
 type TypedExp        = Agnostic.TypedExp        Timed
 
@@ -63,4 +63,6 @@ instance Annotatable Agnostic.Behaviour where
     }
 
 instance Annotatable Agnostic.StorageUpdate where
-  annotate (Update typ item expr) = Update typ (setPost item) (setPre expr)
+  -- The timing in items only refers to the timing of mapping indices of a
+  -- storage update. Hence, it should be Pre
+  annotate (Update typ item expr) = Update typ (setPre item) (setPre expr)

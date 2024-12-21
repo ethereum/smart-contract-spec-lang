@@ -276,8 +276,9 @@ bytecodes :: Text -> Text -> IO (BS.ByteString, BS.ByteString)
 bytecodes cid src = do
   json <- solc Solidity src
   let (Contracts sol', _, _) = fromJust $ readStdJSON json
-  pure ((fromJust . Map.lookup ("hevm.sol" <> ":" <> cid) $ sol').creationCode,
-        (fromJust . Map.lookup ("hevm.sol" <> ":" <> cid) $ sol').runtimeCode)
+  let err = error $ "Cannot find Solidity contract " <> Text.unpack cid
+  pure ((fromMaybe err . Map.lookup ("hevm.sol" <> ":" <> cid) $ sol').creationCode,
+        (fromMaybe err . Map.lookup ("hevm.sol" <> ":" <> cid) $ sol').runtimeCode)
 
 
 

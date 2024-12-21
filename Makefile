@@ -47,6 +47,10 @@ hevm_buggy=tests/hevm/pass/transfer/transfer.act
 hevm_pass=$(filter-out $(hevm_buggy), $(wildcard tests/hevm/pass/*/*.act))
 # supposed to fail
 hevm_fail=$(wildcard tests/hevm/fail/*/*.act)
+# supposed to pass
+hevm_slow=tests/hevm/pass/amm/amm.act tests/hevm/pass/amm-2/amm-2.act
+# supposed to pass, no slow tests
+hevm_fast=$(filter-out $(hevm_slow), $(hevm_pass))
 
 # supposed to pass
 failing_typing=tests/frontend/pass/array/array.act tests/frontend/pass/dss/vat.act tests/frontend/pass/creation/createMultiple.act tests/frontend/pass/staticstore/staticstore.act
@@ -65,6 +69,7 @@ test-type: parser compiler $(typing_pass:=.type.pass) $(typing_fail:=.type.fail)
 test-invariant: parser compiler $(invariant_pass:=.invariant.pass) $(invariant_fail:=.invariant.fail)
 test-postcondition: parser compiler $(postcondition_pass:=.postcondition.pass) $(postcondition_fail:=.postcondition.fail)
 test-hevm: parser compiler $(hevm_pass:=.hevm.pass) $(hevm_fail:=.hevm.fail)
+test-hevm-fast: parser compiler $(hevm_fast:=.hevm.pass.fast) $(hevm_fail:=.hevm.fail)
 test-cabal: src/*.hs
 	cabal v2-run test
 
@@ -108,6 +113,10 @@ tests/hevm/pass/%.act.hevm.pass:
 tests/hevm/fail/%.act.hevm.fail:
 	$(eval CONTRACT := $(shell awk '/contract/{ print $$2 }' tests/hevm/fail/$*.sol))
 	./bin/act hevm --spec tests/hevm/fail/$*.act --sol tests/hevm/fail/$*.sol && exit 1 || echo 0
+
+tests/hevm/pass/%.act.hevm.pass.fast:
+	$(eval CONTRACT := $(shell awk '/contract/{ print $$2 }' tests/hevm/pass/$*.sol))
+	./bin/act hevm --spec tests/hevm/pass/$*.act --sol tests/hevm/pass/$*.sol --smttimeout 100000000
 
 test-ci: test-parse test-type test-invariant test-postcondition test-coq test-hevm
 test: test-ci test-cabal

@@ -1,10 +1,10 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MonadComprehensions #-}
-{-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE DataKinds #-}
 {-# Language RecordWildCards #-}
+{-# LANGUAGE TupleSections #-}
 
 module Act.SMT (
   Solver(..),
@@ -81,7 +81,7 @@ type SMT2 = String
 
 -- | The context is a `Reader` monad which allows us to read
 -- the name of the current interface.
-type Ctx = Reader Id
+type Ctx = Reader Id -- TODO check if this is really needed
 
 -- | Specify the name to use as the current interface when creating SMT-code.
 withInterface :: Id -> Ctx SMT2 -> SMT2
@@ -187,7 +187,7 @@ mkPostconditionQueries (Act _ contr) = concatMap mkPostconditionQueriesContract 
       mkPostconditionQueriesConstr constr <> concatMap mkPostconditionQueriesBehv behvs
 
 mkPostconditionQueriesBehv :: Behaviour -> [Query]
-mkPostconditionQueriesBehv behv@(Behaviour _ _ (Interface ifaceName decls) preconds caseconds postconds stateUpdates _) = mkQuery <$> postconds
+mkPostconditionQueriesBehv behv@(Behaviour _ _ (Interface ifaceName decls) _ preconds caseconds postconds stateUpdates _) = mkQuery <$> postconds
   where
     -- declare vars
     activeLocs = locsFromBehaviour behv -- TODO this might contain redundant locations if invariants use locations that are not mentioned elsewhere in the behaviour
@@ -210,7 +210,7 @@ mkPostconditionQueriesBehv behv@(Behaviour _ _ (Interface ifaceName decls) preco
     mkQuery e = Postcondition (Behv behv) e (mksmt e)
 
 mkPostconditionQueriesConstr :: Constructor -> [Query]
-mkPostconditionQueriesConstr constructor@(Constructor _ (Interface ifaceName decls) preconds postconds _ initialStorage) = mkQuery <$> postconds
+mkPostconditionQueriesConstr constructor@(Constructor _ (Interface ifaceName decls) _ preconds postconds _ initialStorage) = mkQuery <$> postconds
   where
     -- declare vars
     activeLocs = locsFromConstructor constructor
@@ -256,10 +256,10 @@ mkInvariantQueries (Act _ contracts) = fmap mkQuery gathered
     mkQuery (inv, ctor, behvs) = Inv inv (mkInit inv ctor) (fmap (mkBehv inv ctor) behvs)
     gathered = concatMap getInvariants contracts
 
-    getInvariants (Contract (c@Constructor{..}) behvs) = fmap (\i -> (i, c, behvs)) _invariants
+    getInvariants (Contract (c@Constructor{..}) behvs) = fmap (, c, behvs) _invariants
 
     mkInit :: Invariant -> Constructor -> (Constructor, SMTExp)
-    mkInit (Invariant _ invConds _ (_,invPost)) ctor@(Constructor _ (Interface ifaceName decls) preconds _ _ initialStorage) = (ctor, smt)
+    mkInit (Invariant _ invConds _ (_,invPost)) ctor@(Constructor _ (Interface ifaceName decls) _ preconds _ _ initialStorage) = (ctor, smt)
       where
         -- declare vars
         activeLocs = locsFromConstructor ctor
@@ -299,7 +299,7 @@ mkInvariantQueries (Act _ contracts) = fmap mkQuery gathered
         storage = concatMap declareStorageLocation activeLocs
 
         -- constraints
-        preInv = mkAssert ctorIface $ invPre
+        preInv = mkAssert ctorIface invPre
         postInv = mkAssert ctorIface . Neg nowhere $ invPost
         behvConds = mkAssert behvIface <$> _preconditions behv <> _caseconditions behv
         invConds' = mkAssert ctorIface <$> invConds <> invStorageBounds
@@ -507,7 +507,6 @@ parseModel = \case
   SInteger -> _TExp . LitInt  nowhere . read       . parseSMTModel
   SBoolean -> _TExp . LitBool nowhere . readBool   . parseSMTModel
   SByteStr -> _TExp . ByLit   nowhere . fromString . parseSMTModel
-  SContract -> error "unexpected contract type"
   where
     readBool "true" = True
     readBool "false" = False
@@ -541,7 +540,7 @@ parseSMTModel s = if length s0Caps == 1
 encodeUpdate :: Id -> StorageUpdate -> SMT2
 encodeUpdate behvName (Update _ item expr) =
   let
-    postentry  = withInterface behvName $ expToSMT2 (TEntry nowhere Post item)
+    postentry  = withInterface behvName $ expToSMT2 (TEntry nowhere Post SStorage item)
     expression = withInterface behvName $ expToSMT2 expr
   in "(assert (= " <> postentry <> " " <> expression <> "))"
 
@@ -552,8 +551,8 @@ encodeConstant loc = "(assert (= " <> nameFromLoc Pre loc <> " " <> nameFromLoc 
 declareStorage :: [When] -> StorageLocation -> [SMT2]
 declareStorage times (Loc _ item@(Item _ _ ref)) = declareRef ref
   where
-    declareRef (SVar _ _ _) = (\t -> constant (nameFromItem t item) (itemType item) ) <$> times
-    declareRef (SMapping _ _ ixs) = (\t -> array (nameFromItem t item) ixs (itemType item)) <$> times
+    declareRef (SVar _ _ _) = (\t -> constant (nameFromSItem t item) (itemType item) ) <$> times
+    declareRef (SMapping _ _ ixs) = (\t -> array (nameFromSItem t item) ixs (itemType item)) <$> times
     declareRef (SField _ ref' _ _) = declareRef ref'
 
 
@@ -626,8 +625,7 @@ expToSMT2 expr = case expr of
   Eq _ _ a b -> binop "=" a b
   NEq p s a b -> unop "not" (Eq p s a b)
   ITE _ a b c -> triop "ite" a b c
-  Var _ _ _ a -> nameFromVarId a
-  TEntry _ w item -> entry item w
+  TEntry _ w _ item -> entry item w
   where
     unop :: String -> Exp a -> Ctx SMT2
     unop op a = ["(" <> op <> " " <> a' <> ")" | a' <- expToSMT2 a]
@@ -640,10 +638,12 @@ expToSMT2 expr = case expr of
     triop op a b c = ["(" <> op <> " " <> a' <> " " <> b' <> " " <> c' <> ")"
                         | a' <- expToSMT2 a, b' <- expToSMT2 b, c' <- expToSMT2 c]
 
-    entry :: TStorageItem a -> When -> Ctx SMT2
+    entry :: TItem k a ->  When -> Ctx SMT2
     entry item whn = case ixsFromItem item of
-      []       -> pure $ nameFromItem whn item
-      (ix:ixs) -> select (nameFromItem whn item) (ix :| ixs)
+      []       -> nameFromItem whn item
+      (ix:ixs) -> do
+        name <- nameFromItem whn item
+        select name (ix :| ixs)
 
 -- | SMT2 has no support for exponentiation, but we can do some preprocessing
 --   if the RHS is concrete to provide some limited support for exponentiation
@@ -680,7 +680,6 @@ sType :: ActType -> SMT2
 sType AInteger = "Int"
 sType ABoolean = "Bool"
 sType AByteStr = "String"
-sType AContract = error "contracts not supported"
 
 -- | act -> smt2 type translation
 sType' :: TypedExp -> SMT2
@@ -689,17 +688,33 @@ sType' (TExp t _) = sType $ actType t
 --- ** Variable Names ** ---
 
 -- Construct the smt2 variable name for a given storage item
-nameFromItem :: When -> TStorageItem a -> Id
-nameFromItem whn (Item _ _ ref) = nameFromStorageRef ref @@ show whn
+nameFromSItem :: When -> TItem a Storage -> Id
+nameFromSItem whn (Item _ _ ref) = nameFromSRef ref @@ show whn
 
-nameFromStorageRef :: StorageRef -> Id
-nameFromStorageRef (SVar _ c name) = c @@ name
-nameFromStorageRef (SMapping _ e _) = nameFromStorageRef e
-nameFromStorageRef (SField _ ref c x) = nameFromStorageRef ref @@ c @@ x
+nameFromSRef :: Ref Storage -> Id
+nameFromSRef (SVar _ c name) = c @@ name
+nameFromSRef (SMapping _ e _) = nameFromSRef e
+nameFromSRef (SField _ ref c x) = nameFromSRef ref @@ c @@ x
+
+nameFromItem :: When -> TItem k a -> Ctx Id
+nameFromItem whn (Item _ _ ref) = do
+  name <- nameFromRef ref
+  case ref of -- TODO: this feels rather adhoc, but I can't find a better way to handle timings
+    CVar _ _ _ -> pure $ name
+    _ -> pure $ name @@ show whn
+
+nameFromRef :: Ref k -> Ctx Id
+nameFromRef (CVar _ _ name) = nameFromVarId name
+nameFromRef (SVar _ c name) = pure $ c @@ name
+nameFromRef (SMapping _ e _) = nameFromRef e
+nameFromRef (SField _ ref c x) = do 
+  name <- nameFromRef ref
+  pure $ name @@ c @@ x
+
 
 -- Construct the smt2 variable name for a given storage location
 nameFromLoc :: When -> StorageLocation -> Id
-nameFromLoc whn (Loc _ item) = nameFromItem whn item
+nameFromLoc whn (Loc _ item) = nameFromSItem whn item
 
 -- Construct the smt2 variable name for a given decl
 nameFromDecl :: Id -> Decl -> Id

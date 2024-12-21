@@ -27,6 +27,7 @@
         },
         "invariants": [],
         "kind": "Constructor",
+        "pointers": [],
         "postConditions": [],
         "preConditions": []
       },
@@ -58,6 +59,7 @@
           },
           "kind": "Behaviour",
           "name": "remote",
+          "pointers": [],
           "postConditions": [],
           "preConditions": [
             {
@@ -83,12 +85,18 @@
                       "type": "int"
                     },
                     {
-                      "abitype": {
-                        "size": "256",
-                        "type": "UInt"
+                      "entry": {
+                        "item": {
+                          "abitype": {
+                            "size": "256",
+                            "type": "UInt"
+                          },
+                          "kind": "Var",
+                          "var": "z"
+                        },
+                        "type": "int"
                       },
-                      "type": "int",
-                      "var": "z"
+                      "timing": "Pre"
                     }
                   ],
                   "arity": 2,
@@ -97,12 +105,18 @@
                 {
                   "args": [
                     {
-                      "abitype": {
-                        "size": "256",
-                        "type": "UInt"
+                      "entry": {
+                        "item": {
+                          "abitype": {
+                            "size": "256",
+                            "type": "UInt"
+                          },
+                          "kind": "Var",
+                          "var": "z"
+                        },
+                        "type": "int"
                       },
-                      "type": "int",
-                      "var": "z"
+                      "timing": "Pre"
                     },
                     {
                       "literal": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
@@ -226,12 +240,18 @@
                 "type": "int"
               },
               "value": {
-                "abitype": {
-                  "size": "256",
-                  "type": "UInt"
+                "entry": {
+                  "item": {
+                    "abitype": {
+                      "size": "256",
+                      "type": "UInt"
+                    },
+                    "kind": "Var",
+                    "var": "z"
+                  },
+                  "type": "int"
                 },
-                "type": "int",
-                "var": "z"
+                "timing": "Pre"
               }
             }
           ]
@@ -260,6 +280,7 @@
           },
           "kind": "Behaviour",
           "name": "multi",
+          "pointers": [],
           "postConditions": [],
           "preConditions": [
             {
@@ -285,12 +306,18 @@
                       "type": "int"
                     },
                     {
-                      "abitype": {
-                        "size": "256",
-                        "type": "UInt"
+                      "entry": {
+                        "item": {
+                          "abitype": {
+                            "size": "256",
+                            "type": "UInt"
+                          },
+                          "kind": "Var",
+                          "var": "z"
+                        },
+                        "type": "int"
                       },
-                      "type": "int",
-                      "var": "z"
+                      "timing": "Pre"
                     }
                   ],
                   "arity": 2,
@@ -299,12 +326,18 @@
                 {
                   "args": [
                     {
-                      "abitype": {
-                        "size": "256",
-                        "type": "UInt"
+                      "entry": {
+                        "item": {
+                          "abitype": {
+                            "size": "256",
+                            "type": "UInt"
+                          },
+                          "kind": "Var",
+                          "var": "z"
+                        },
+                        "type": "int"
                       },
-                      "type": "int",
-                      "var": "z"
+                      "timing": "Pre"
                     },
                     {
                       "literal": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
@@ -490,12 +523,18 @@
                 "type": "int"
               },
               "value": {
-                "abitype": {
-                  "size": "256",
-                  "type": "UInt"
+                "entry": {
+                  "item": {
+                    "abitype": {
+                      "size": "256",
+                      "type": "UInt"
+                    },
+                    "kind": "Var",
+                    "var": "z"
+                  },
+                  "type": "int"
                 },
-                "type": "int",
-                "var": "z"
+                "timing": "Pre"
               }
             }
           ]
@@ -525,7 +564,7 @@
                 "kind": "SVar",
                 "svar": "a"
               },
-              "type": "contract"
+              "type": "int"
             },
             "value": {
               "args": [
@@ -546,6 +585,7 @@
         },
         "invariants": [],
         "kind": "Constructor",
+        "pointers": [],
         "postConditions": [],
         "preConditions": []
       },

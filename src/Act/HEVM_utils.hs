@@ -29,6 +29,7 @@ import Act.Syntax.Annotated
 import Act.Syntax.Untyped (makeIface)
 
 import qualified EVM.Types as EVM
+import EVM.Types (VM(..))
 import EVM.Expr hiding (op2, inRange)
 import EVM.SymExec hiding (EquivResult, isPartial, abstractVM, loadSymVM)
 import EVM.Solvers
@@ -56,7 +57,7 @@ defaultActConfig = Config
   , abstRefineArith = False
   , abstRefineMem   = False
   , dumpTrace = False
-  , numCexFuzz = 10
+  , numCexFuzz = 0
   , onlyCexFuzz = False
   , decomposeStorage = False
   }
@@ -122,20 +123,21 @@ getRuntimeBranches solvers contracts calldata fresh = do
 
 
 -- | decompiles the given EVM initcode into a list of Expr branches
-getInitcodeBranches :: App m => SolverGroup -> BS.ByteString -> Calldata -> Int -> m [EVM.Expr EVM.End]
-getInitcodeBranches solvers initcode calldata fresh = do
-  initVM <- liftIO $ stToIO $ abstractInitVM initcode calldata fresh
+getInitcodeBranches :: App m => SolverGroup -> BS.ByteString -> [(EVM.Expr EVM.EAddr, EVM.Contract)] -> Calldata -> [EVM.Prop] -> Int -> m [EVM.Expr EVM.End]
+getInitcodeBranches solvers initcode contracts calldata precond fresh = do
+  initVM <- liftIO $ stToIO $ abstractInitVM initcode contracts calldata precond fresh
   expr <- interpret (Fetch.oracle solvers Nothing) Nothing 1 StackBased initVM runExpr
-  let simpl = if True then (simplify expr) else expr
+  let simpl = simplify expr
   let nodes = flattenExpr simpl
   checkPartial nodes
   pure nodes
 
-abstractInitVM :: BS.ByteString -> (EVM.Expr EVM.Buf, [EVM.Prop]) -> Int -> ST s (EVM.VM EVM.Symbolic s)
-abstractInitVM contractCode cd fresh = do
+abstractInitVM :: BS.ByteString -> [(EVM.Expr EVM.EAddr, EVM.Contract)] -> (EVM.Expr EVM.Buf, [EVM.Prop]) -> [EVM.Prop] -> Int -> ST s (EVM.VM EVM.Symbolic s)
+abstractInitVM contractCode contracts cd precond fresh = do
   let value = EVM.TxValue
   let code = EVM.InitCode contractCode (fst cd)
-  loadSymVM (EVM.SymAddr "entrypoint", EVM.initialContract code) [] value cd True fresh
+  vm <- loadSymVM (EVM.SymAddr "entrypoint", EVM.initialContract code) contracts value cd True fresh
+  pure $ vm { constraints = vm.constraints <> precond }
 
 abstractVM :: [(EVM.Expr EVM.EAddr, EVM.Contract)] -> (EVM.Expr EVM.Buf, [EVM.Prop]) -> Int -> ST s (EVM.VM EVM.Symbolic s)
 abstractVM contracts cd fresh = do

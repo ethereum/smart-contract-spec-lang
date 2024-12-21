@@ -41,6 +41,7 @@
         },
         "invariants": [],
         "kind": "Constructor",
+        "pointers": [],
         "postConditions": [],
         "preConditions": [
           {

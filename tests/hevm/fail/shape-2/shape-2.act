@@ -1,0 +1,39 @@
+// contract A
+constructor of A
+interface constructor(uint z)
+
+iff
+   CALLVALUE == 0
+
+creates
+   uint x := z
+
+
+behaviour x of A
+interface x()
+
+iff
+   CALLVALUE == 0
+
+returns
+   pre(x)
+
+// contract C
+constructor of C
+interface constructor()
+iff
+   CALLVALUE == 0
+
+creates
+   A a1 := create A(42)
+   A a2 := create A(17)
+
+behaviour change of C
+interface change()
+
+iff
+
+  CALLVALUE == 0
+  
+storage
+  a1 => a2

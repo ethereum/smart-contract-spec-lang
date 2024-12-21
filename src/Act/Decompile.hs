@@ -79,7 +79,7 @@ decompile contract solvers = do
         Failure es -> pure . Left . T.unlines . NE.toList . fmap (T.pack . snd) $ es
 
 
--- Sumarization ------------------------------------------------------------------------------------
+-- Summarization ------------------------------------------------------------------------------------
 
 
 -- | The result of summarization.
@@ -214,6 +214,7 @@ mkConstructor cs
           pure $ Constructor
             { _cname = T.unpack cs.name
             , _cinterface = fst cs.creation
+            , _cpointers = []
             , _cpreconditions = nub ps
             , _cpostconditions = mempty
             , _invariants = mempty
@@ -258,6 +259,7 @@ mkBehvs c = concatMapM (\(i, bs) -> mapM (mkbehv i) (Set.toList bs)) (Map.toList
         { _contract = T.unpack c.name
         , _interface = behvIface method
         , _name = T.unpack method.name
+        , _pointers = []
         , _preconditions = nub pres
         , _caseconditions = mempty -- TODO: what to do here?
         , _postconditions = mempty
@@ -367,7 +369,7 @@ fromProp l p = simplify <$> go p
 
 -- | Convert an HEVM word into an integer Exp
 fromWord :: Map (Integer, Integer) (Text, SlotType) -> EVM.Expr EVM.EWord -> Either Text (Exp AInteger)
-fromWord layout w = go w
+fromWord layout w = simplify <$> go w
   where
     err e = Left $ "unable to convert to integer: " <> T.pack (show e) <> "\nouter expression: " <> T.pack (show w)
     evmbool c = ITE nowhere c (LitInt nowhere 1) (LitInt nowhere 0)
@@ -376,7 +378,7 @@ fromWord layout w = go w
     go :: EVM.Expr EVM.EWord -> Either Text (Exp AInteger)
     go (EVM.Lit a) = Right $ LitInt nowhere (toInteger a)
     -- TODO: get the actual abi type from the compiler output
-    go (EVM.Var a) = Right $ Var nowhere SInteger (AbiBytesType 32) (T.unpack a)
+    go (EVM.Var a) = Right $ _Var Pre (AbiBytesType 32) (T.unpack a)
     go (EVM.TxValue) = Right $ IntEnv nowhere Callvalue
 
     -- overflow checks
@@ -436,7 +438,7 @@ fromWord layout w = go w
            Nothing -> Left "read from a storage location that is not present in the solc layout"
            Just (nm, tp) -> case tp of
              -- TODO: get lookup contract name by address
-             StorageValue t@(PrimitiveType _) -> Right $ TEntry nowhere Pre (Item SInteger t (SVar nowhere (T.unpack "Basic") (T.unpack nm)))
+             StorageValue t@(PrimitiveType _) -> Right $ TEntry nowhere Pre SStorage (Item SInteger t (SVar nowhere (T.unpack "Basic") (T.unpack nm)))
              _ -> Left $ "unable to handle storage reads for variables of type: " <> T.pack (show tp)
 
     go e = err e

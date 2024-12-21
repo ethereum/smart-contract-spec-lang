@@ -1,0 +1,77 @@
+constructor of Token
+interface constructor(uint _supply)
+
+iff
+    CALLVALUE == 0
+
+creates
+    mapping(address => uint) balanceOf :=  [CALLER := _supply]
+
+behaviour balanceOf of Token
+interface balanceOf(address a)
+
+iff
+
+  CALLVALUE == 0
+
+returns pre(balanceOf[a])
+
+
+behaviour transfer of Token
+interface transfer(address to, uint256 value)
+
+iff
+
+  CALLVALUE == 0
+  CALLER =/= to => inRange(uint256, balanceOf[to] + value)
+  inRange(uint256,balanceOf[CALLER] - value)
+
+case CALLER =/= to:
+
+  storage
+
+    balanceOf[CALLER]  => balanceOf[CALLER] - value
+    balanceOf[to]    => balanceOf[to] + value
+
+  returns 1
+
+case CALLER == to:
+
+  returns 1
+
+
+constructor of TransferOneToken
+interface constructor(address _tokenAddress)
+
+pointers
+    _tokenAddress |-> Token
+
+iff
+
+    CALLVALUE == 0
+    _tokenAddress =/= 0
+
+creates
+
+    Token token := _tokenAddress
+
+behaviour transfer of TransferOneToken
+interface transfer()
+
+iff
+    CALLVALUE == 0    
+    THIS =/= CALLER => inRange(uint256, token.balanceOf[CALLER] + 1)
+    inRange(uint256,token.balanceOf[THIS] - 1)
+
+case CALLER =/= THIS:
+
+storage
+
+    token.balanceOf[CALLER] => token.balanceOf[CALLER] + 1
+    token.balanceOf[THIS]  => token.balanceOf[THIS] - 1
+
+returns 1
+
+case CALLER == THIS:
+
+returns 1

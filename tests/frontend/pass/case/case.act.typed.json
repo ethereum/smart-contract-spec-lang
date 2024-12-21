@@ -7,12 +7,18 @@
             {
               "args": [
                 {
-                  "abitype": {
-                    "size": "256",
-                    "type": "UInt"
+                  "entry": {
+                    "item": {
+                      "abitype": {
+                        "size": "256",
+                        "type": "UInt"
+                      },
+                      "kind": "Var",
+                      "var": "z"
+                    },
+                    "type": "int"
                   },
-                  "type": "int",
-                  "var": "z"
+                  "timing": "Pre"
                 },
                 {
                   "literal": "0",
@@ -40,6 +46,7 @@
           },
           "kind": "Behaviour",
           "name": "bar",
+          "pointers": [],
           "postConditions": [],
           "preConditions": [
             {
@@ -65,12 +72,18 @@
                       "type": "int"
                     },
                     {
-                      "abitype": {
-                        "size": "256",
-                        "type": "UInt"
+                      "entry": {
+                        "item": {
+                          "abitype": {
+                            "size": "256",
+                            "type": "UInt"
+                          },
+                          "kind": "Var",
+                          "var": "z"
+                        },
+                        "type": "int"
                       },
-                      "type": "int",
-                      "var": "z"
+                      "timing": "Pre"
                     }
                   ],
                   "arity": 2,
@@ -79,12 +92,18 @@
                 {
                   "args": [
                     {
-                      "abitype": {
-                        "size": "256",
-                        "type": "UInt"
+                      "entry": {
+                        "item": {
+                          "abitype": {
+                            "size": "256",
+                            "type": "UInt"
+                          },
+                          "kind": "Var",
+                          "var": "z"
+                        },
+                        "type": "int"
                       },
-                      "type": "int",
-                      "var": "z"
+                      "timing": "Pre"
                     },
                     {
                       "literal": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
@@ -193,12 +212,18 @@
                 "type": "int"
               },
               "value": {
-                "abitype": {
-                  "size": "256",
-                  "type": "UInt"
+                "entry": {
+                  "item": {
+                    "abitype": {
+                      "size": "256",
+                      "type": "UInt"
+                    },
+                    "kind": "Var",
+                    "var": "z"
+                  },
+                  "type": "int"
                 },
-                "type": "int",
-                "var": "z"
+                "timing": "Pre"
               }
             }
           ]
@@ -208,12 +233,18 @@
             {
               "args": [
                 {
-                  "abitype": {
-                    "size": "256",
-                    "type": "UInt"
+                  "entry": {
+                    "item": {
+                      "abitype": {
+                        "size": "256",
+                        "type": "UInt"
+                      },
+                      "kind": "Var",
+                      "var": "z"
+                    },
+                    "type": "int"
                   },
-                  "type": "int",
-                  "var": "z"
+                  "timing": "Pre"
                 },
                 {
                   "literal": "1",
@@ -241,6 +272,7 @@
           },
           "kind": "Behaviour",
           "name": "bar",
+          "pointers": [],
           "postConditions": [],
           "preConditions": [
             {
@@ -266,12 +298,18 @@
                       "type": "int"
                     },
                     {
-                      "abitype": {
-                        "size": "256",
-                        "type": "UInt"
+                      "entry": {
+                        "item": {
+                          "abitype": {
+                            "size": "256",
+                            "type": "UInt"
+                          },
+                          "kind": "Var",
+                          "var": "z"
+                        },
+                        "type": "int"
                       },
-                      "type": "int",
-                      "var": "z"
+                      "timing": "Pre"
                     }
                   ],
                   "arity": 2,
@@ -280,12 +318,18 @@
                 {
                   "args": [
                     {
-                      "abitype": {
-                        "size": "256",
-                        "type": "UInt"
+                      "entry": {
+                        "item": {
+                          "abitype": {
+                            "size": "256",
+                            "type": "UInt"
+                          },
+                          "kind": "Var",
+                          "var": "z"
+                        },
+                        "type": "int"
                       },
-                      "type": "int",
-                      "var": "z"
+                      "timing": "Pre"
                     },
                     {
                       "literal": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
@@ -396,12 +440,18 @@
               "value": {
                 "args": [
                   {
-                    "abitype": {
-                      "size": "256",
-                      "type": "UInt"
+                    "entry": {
+                      "item": {
+                        "abitype": {
+                          "size": "256",
+                          "type": "UInt"
+                        },
+                        "kind": "Var",
+                        "var": "z"
+                      },
+                      "type": "int"
                     },
-                    "type": "int",
-                    "var": "z"
+                    "timing": "Pre"
                   },
                   {
                     "literal": "1",
@@ -419,12 +469,18 @@
             {
               "args": [
                 {
-                  "abitype": {
-                    "size": "256",
-                    "type": "UInt"
+                  "entry": {
+                    "item": {
+                      "abitype": {
+                        "size": "256",
+                        "type": "UInt"
+                      },
+                      "kind": "Var",
+                      "var": "z"
+                    },
+                    "type": "int"
                   },
-                  "type": "int",
-                  "var": "z"
+                  "timing": "Pre"
                 },
                 {
                   "literal": "1",
@@ -452,6 +508,7 @@
           },
           "kind": "Behaviour",
           "name": "bar",
+          "pointers": [],
           "postConditions": [],
           "preConditions": [
             {
@@ -477,12 +534,18 @@
                       "type": "int"
                     },
                     {
-                      "abitype": {
-                        "size": "256",
-                        "type": "UInt"
+                      "entry": {
+                        "item": {
+                          "abitype": {
+                            "size": "256",
+                            "type": "UInt"
+                          },
+                          "kind": "Var",
+                          "var": "z"
+                        },
+                        "type": "int"
                       },
-                      "type": "int",
-                      "var": "z"
+                      "timing": "Pre"
                     }
                   ],
                   "arity": 2,
@@ -491,12 +554,18 @@
                 {
                   "args": [
                     {
-                      "abitype": {
-                        "size": "256",
-                        "type": "UInt"
+                      "entry": {
+                        "item": {
+                          "abitype": {
+                            "size": "256",
+                            "type": "UInt"
+                          },
+                          "kind": "Var",
+                          "var": "z"
+                        },
+                        "type": "int"
                       },
-                      "type": "int",
-                      "var": "z"
+                      "timing": "Pre"
                     },
                     {
                       "literal": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
@@ -607,12 +676,18 @@
               "value": {
                 "args": [
                   {
-                    "abitype": {
-                      "size": "256",
-                      "type": "UInt"
+                    "entry": {
+                      "item": {
+                        "abitype": {
+                          "size": "256",
+                          "type": "UInt"
+                        },
+                        "kind": "Var",
+                        "var": "z"
+                      },
+                      "type": "int"
                     },
-                    "type": "int",
-                    "var": "z"
+                    "timing": "Pre"
                   },
                   {
                     "literal": "2",
@@ -651,6 +726,7 @@
         },
         "invariants": [],
         "kind": "Constructor",
+        "pointers": [],
         "postConditions": [],
         "preConditions": []
       },

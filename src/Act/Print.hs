@@ -29,9 +29,10 @@ prettyContract :: Contract t -> String
 prettyContract (Contract ctor behvs) = unlines $ intersperse "\n" $ (prettyCtor ctor):(fmap prettyBehaviour behvs)
 
 prettyCtor :: Constructor t -> String
-prettyCtor (Constructor name interface pres posts invs initStore)
+prettyCtor (Constructor name interface ptrs pres posts invs initStore)
   =   "constructor of " <> name
   >-< "interface " <> show interface
+  <> prettyPtrs ptrs
   <> prettyPre pres
   <> prettyCreates initStore
   <> prettyPost posts
@@ -52,9 +53,10 @@ prettyValueType = \case
 
 
 prettyBehaviour :: Behaviour t -> String
-prettyBehaviour (Behaviour name contract interface preconditions cases postconditions stateUpdates returns)
+prettyBehaviour (Behaviour name contract interface ptrs preconditions cases postconditions stateUpdates returns)
   =   "behaviour " <> name <> " of " <> contract
   >-< "interface " <> (show interface)
+  <> prettyPtrs ptrs
   <> prettyPre preconditions
   <> prettyCases cases
   <> prettyStorage stateUpdates
@@ -68,6 +70,12 @@ prettyBehaviour (Behaviour name contract interface preconditions cases postcondi
     prettyRet Nothing = ""
 
 
+
+prettyPtrs :: [Pointer] -> String
+prettyPtrs [] = ""
+prettyPtrs ptrs = header "pointers" >-< block (prettyPtr <$> ptrs)
+  where
+    prettyPtr (PointsTo _ x c) = x <> " |-> " <> c
 
 prettyPre :: [Exp ABoolean t] -> String
 prettyPre [] = ""
@@ -134,19 +142,19 @@ prettyExp e = case e of
 
   --polymorphic
   ITE _ a b c -> "(if " <> prettyExp a <> " then " <> prettyExp b <> " else " <> prettyExp c <> ")"
-  TEntry _ t a -> timeParens t $ prettyItem a
-  Var _ _ _ x -> x
+  TEntry _ t _ a -> timeParens t $ prettyItem a
   where
     print2 sym a b = "(" <> prettyExp a <> " " <> sym <> " " <> prettyExp b <> ")"
 
 prettyTypedExp :: TypedExp t -> String
 prettyTypedExp (TExp _ e) = prettyExp e
 
-prettyItem :: TStorageItem a t -> String
+prettyItem :: TItem k a t -> String
 prettyItem (Item _ _ r) = prettyRef r
 
-prettyRef :: StorageRef t -> String
+prettyRef :: Ref k t -> String
 prettyRef = \case
+  CVar _ _ n -> n
   SVar _ _ n -> n
   SMapping _ r args -> prettyRef r <> concatMap (brackets . prettyTypedExp) args
   SField _ r _ n -> prettyRef r <> "." <> n
@@ -188,10 +196,11 @@ prettyInvPred = prettyExp . untime . fst
     untimeTyped :: TypedExp t -> TypedExp Untimed
     untimeTyped (TExp t e) = TExp t (untime e)
 
-    untimeStorageRef :: StorageRef t -> StorageRef Untimed
-    untimeStorageRef (SVar p c a) = SVar p c a
-    untimeStorageRef (SMapping p e xs) = SMapping p (untimeStorageRef e) (fmap untimeTyped xs)
-    untimeStorageRef (SField p e c x) = SField p (untimeStorageRef e) c x
+    untimeRef:: Ref k t -> Ref k Untimed
+    untimeRef (SVar p c a) = SVar p c a
+    untimeRef (CVar p c a) = CVar p c a
+    untimeRef (SMapping p e xs) = SMapping p (untimeRef e) (fmap untimeTyped xs)
+    untimeRef (SField p e c x) = SField p (untimeRef e) c x
 
     untime :: Exp a t -> Exp a Untimed
     untime e = case e of
@@ -226,8 +235,7 @@ prettyInvPred = prettyExp . untime . fst
       ByEnv p a   -> ByEnv p a
       ITE p x y z -> ITE p (untime x) (untime y) (untime z)
       Slice p a b c -> Slice p (untime a) (untime b) (untime c)
-      TEntry p _ (Item t vt a) -> TEntry p Neither (Item t vt (untimeStorageRef a))
-      Var p t at a -> Var p t at a
+      TEntry p _ k (Item t vt a) -> TEntry p Neither k (Item t vt (untimeRef a))
 
 
 -- | Doc type for terminal output

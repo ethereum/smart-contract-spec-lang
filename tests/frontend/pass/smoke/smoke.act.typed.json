@@ -26,6 +26,7 @@
           },
           "kind": "Behaviour",
           "name": "f",
+          "pointers": [],
           "postConditions": [],
           "preConditions": [
             {
@@ -37,12 +38,18 @@
                       "type": "int"
                     },
                     {
-                      "abitype": {
-                        "size": "256",
-                        "type": "UInt"
+                      "entry": {
+                        "item": {
+                          "abitype": {
+                            "size": "256",
+                            "type": "UInt"
+                          },
+                          "kind": "Var",
+                          "var": "x"
+                        },
+                        "type": "int"
                       },
-                      "type": "int",
-                      "var": "x"
+                      "timing": "Pre"
                     }
                   ],
                   "arity": 2,
@@ -51,12 +58,18 @@
                 {
                   "args": [
                     {
-                      "abitype": {
-                        "size": "256",
-                        "type": "UInt"
+                      "entry": {
+                        "item": {
+                          "abitype": {
+                            "size": "256",
+                            "type": "UInt"
+                          },
+                          "kind": "Var",
+                          "var": "x"
+                        },
+                        "type": "int"
                       },
-                      "type": "int",
-                      "var": "x"
+                      "timing": "Pre"
                     },
                     {
                       "literal": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
@@ -92,6 +105,7 @@
         },
         "invariants": [],
         "kind": "Constructor",
+        "pointers": [],
         "postConditions": [],
         "preConditions": []
       },

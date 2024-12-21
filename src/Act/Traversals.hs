@@ -20,11 +20,11 @@ instance TraversableTerm (Exp a t) where
 instance TraversableTerm (TypedExp t) where
   mapTermM = mapTypedExpM
 
-instance TraversableTerm (TStorageItem a t) where
-  mapTermM = mapTStorageItemM
+instance TraversableTerm (TItem k a t) where
+  mapTermM = mapTItemM
 
-instance TraversableTerm (StorageRef t) where
-  mapTermM = mapStorageRefM
+instance TraversableTerm (Ref k t) where
+  mapTermM = mapRefM
 
 mapExpM :: Monad m => (forall a . Exp a t -> m (Exp a t)) -> Exp b t -> m (Exp b t)
 mapExpM f = \case
@@ -120,7 +120,7 @@ mapExpM f = \case
   Create p n as -> do
     as' <- mapM (mapTypedExpM f) as
     f (Create p n as')
-
+    
   --polymorphic
 
   Eq p s a b -> do
@@ -137,28 +137,28 @@ mapExpM f = \case
     b' <- mapExpM f b
     c' <- mapExpM f c
     f (ITE p a' b' c')
-  Var p s a i -> f (Var p s a i)
-  TEntry p t i -> do
-    i' <- mapTStorageItemM f i
-    f (TEntry p t i')
+  TEntry p t k i -> do
+    i' <- mapTItemM f i
+    f (TEntry p t k i')
 
 mapTypedExpM :: Monad m => (forall a . Exp a t -> m (Exp a t)) -> TypedExp t -> m (TypedExp t)
 mapTypedExpM f (TExp s e) = do
   e' <- f e
   pure $ TExp s e'
 
-mapTStorageItemM :: Monad m => (forall a . Exp a t -> m (Exp a t)) -> TStorageItem b t -> m (TStorageItem b t)
-mapTStorageItemM f (Item s v r) = do
-  r' <- mapStorageRefM f r
+mapTItemM :: Monad m => (forall a . Exp a t -> m (Exp a t)) -> TItem k b t -> m (TItem k b t)
+mapTItemM f (Item s v r) = do
+  r' <- mapRefM f r
   pure $ Item s v r'
 
-mapStorageRefM :: Monad m => (forall a . Exp a t -> m (Exp a t)) -> StorageRef t -> m (StorageRef t)
-mapStorageRefM f = \case
+mapRefM :: Monad m => (forall a . Exp a t -> m (Exp a t)) -> Ref k t -> m (Ref k t)
+mapRefM f = \case
   SVar p a b -> pure (SVar p a b)
+  CVar p a b -> pure (CVar p a b)
   SMapping p a b -> do
-    a' <- mapStorageRefM f a
+    a' <- mapRefM f a
     b' <- mapM (mapTypedExpM f) b
     pure $ SMapping p a' b'
   SField p r a b -> do
-    r' <- mapStorageRefM f r
+    r' <- mapRefM f r
     pure $ SField p r' a b

@@ -7,7 +7,7 @@ module Main where
 
 import Prelude hiding (GT, LT)
 import Test.Tasty
-import Test.Tasty.QuickCheck (Gen, arbitrary, testProperty, Property, (===), counterexample)
+import Test.Tasty.QuickCheck (Gen, arbitrary, testProperty, Property, (===), counterexample, whenFail)
 import Test.QuickCheck.Instances.ByteString()
 import Test.QuickCheck.GenT
 import Test.QuickCheck.Monadic
@@ -21,7 +21,7 @@ import Data.Map (fromList)
 
 import Act.CLI (compile)
 import Act.Error
-import Act.Print (prettyBehaviour)
+import Act.Print (prettyBehaviour, prettyAct)
 import Act.SMT
 import Act.Syntax.Annotated
 
@@ -56,12 +56,14 @@ main = defaultMain $ testGroup "act"
          fail spec is also checked.
       -}
       [ testProperty "roundtrip" . withExponents $ do
-          behv@(Behaviour _ contract _ _ _ _ _ _) <- sized genBehv
+          behv@(Behaviour _ contract _ _ _ _ _ _ _) <- sized genBehv
           let actual = compile $ prettyBehaviour behv
               expected = Act (defaultStore contract) [Contract (defaultCtor contract) [behv]]
           return $ case actual of
-            Success a -> a === expected
-            Failure err -> counterexample ("Internal error: compilation of Act failed\n" <> show err) False
+            Success a ->
+              let err_str = "Actual:\n" <> prettyAct a <> show a <> "Expected:\n" <> prettyAct expected <> show expected in
+              whenFail (putStrLn err_str) $ a === expected
+            Failure err -> counterexample ("Internal error: compilation of Act failed\n" <> show err <> "\n") False
       ]
 
   , testGroup "smt"
@@ -75,7 +77,13 @@ defaultStore :: Id -> Store
 defaultStore c = fromList [(c,mempty)]
 
 defaultCtor :: Id -> Constructor
-defaultCtor c = Constructor {_cname = c, _cinterface = Interface c [], _cpreconditions = [], _cpostconditions = [], _invariants = [], _initialStorage = []}
+defaultCtor c = Constructor { _cname = c
+                            , _cinterface = Interface c []
+                            , _cpointers = []
+                            , _cpreconditions = []
+                            , _cpostconditions = []
+                            , _invariants = []
+                            , _initialStorage = []}
 
 
 typeCheckSMT :: Solver -> GenT (Reader Bool) Property
@@ -95,9 +103,9 @@ typeCheckSMT solver = do
 -- *** QuickCheck Generators *** --
 
 
-data Names = Names { _ints :: [String]
-                   , _bools :: [String]
-                   , _bytes :: [String]
+data Names = Names { _ints :: [(String, AbiType)]
+                   , _bools :: [(String, AbiType)]
+                   , _bytes :: [(String, AbiType)]
                    } deriving (Show)
 
 {-
@@ -117,10 +125,11 @@ genBehv n = do
   preconditions <- listOf $ genExpBool abiNames n
   returns <- Just <$> genTypedExp abiNames n
   postconditions <- listOf $ genExpBool abiNames n
-  iface <- Interface ifname <$> mkDecls abiNames
+  let iface = Interface ifname (mkDecls abiNames)
   return Behaviour { _name = name
                    , _contract = contract
                    , _interface = iface
+                   , _pointers = []
                    , _preconditions = preconditions
                    , _caseconditions = [LitBool nowhere True]
                    , _postconditions = postconditions
@@ -129,12 +138,11 @@ genBehv n = do
                    }
 
 
-mkDecls :: Names -> ExpoGen [Decl]
-mkDecls (Names ints bools bytes) = mapM mkDecl names
+mkDecls :: Names -> [Decl]
+mkDecls (Names ints bools bytes) = mkDecl <$> names
   where
-    mkDecl (n, typ) = ((flip Decl) n) <$> (genType typ)
-    names = prepare AInteger ints ++ prepare ABoolean bools ++ prepare AByteStr bytes
-    prepare typ ns = (,typ) <$> ns
+    mkDecl (n, typ) = Decl typ n
+    names = ints ++ bools ++ bytes
 
 
 genType :: ActType -> ExpoGen AbiType
@@ -147,7 +155,6 @@ genType typ = case typ of
   ABoolean -> return AbiBoolType
   AByteStr -> return AbiStringType
                    --, return AbiBytesDynamicType -- TODO: needs frontend support
-  AContract -> error "contracts not supported"
   where
     validIntSize = elements [ x | x <- [8..256], x `mod` 8 == 0 ]
     validBytesSize = elements [1..32]
@@ -163,12 +170,12 @@ genTypedExp names n = oneof
 
 -- TODO: literals, cat slice, ITE, storage, ByStr
 genExpBytes :: Names -> Int -> ExpoGen (Exp AByteStr)
-genExpBytes names _ = _Var (AbiBytesType 32) <$> selectName AByteStr names
+genExpBytes names _ = selectVar SByteStr names
 
 -- TODO: ITE, storage
 genExpBool :: Names -> Int -> ExpoGen (Exp ABoolean)
 genExpBool names 0 = oneof
-  [ _Var AbiBoolType <$> selectName ABoolean names
+  [ selectVar SBoolean names
   , LitBool nowhere <$> liftGen arbitrary
   ]
 genExpBool names n = oneof
@@ -194,7 +201,7 @@ genExpBool names n = oneof
 genExpInt :: Names -> Int -> ExpoGen (Exp AInteger)
 genExpInt names 0 = oneof
   [ LitInt nowhere <$> liftGen arbitrary
-  , _Var (AbiUIntType 256) <$> selectName AInteger names
+  , selectVar SInteger names
   , return $ IntEnv nowhere Caller
   , return $ IntEnv nowhere Callvalue
   , return $ IntEnv nowhere Calldepth
@@ -225,24 +232,23 @@ genExpInt names n = do
         subExpBool = genExpBool names (n `div` 2)
 
 
-selectName :: ActType -> Names -> ExpoGen String
-selectName typ (Names ints bools bytes) = do
+selectVar :: SType a -> Names -> ExpoGen (Exp a)
+selectVar typ (Names ints bools bytes) = do
   let names = case typ of
-                AInteger -> ints
-                ABoolean -> bools
-                AByteStr -> bytes
-                AContract -> error "unsupported type"
+                SInteger -> ints
+                SBoolean -> bools
+                SByteStr -> bytes
   idx <- elements [0..((length names)-1)]
-  return $ names!!idx
+  let (x, at) = names!!idx
+  return $ TEntry nowhere Pre SCalldata (Item typ (PrimitiveType at) (CVar nowhere at x))
 
-
--- |Generates a record type containing identifier names.
+-- | Generates a record type containing identifier names.
 -- Ensures each generated name appears once only.
 -- Names are seperated by type to ensure that e.g. an int expression does not reference a bool
 genNames :: ExpoGen Names
-genNames = mkNames <$> (split <$> unique)
+genNames = mkNames <$> (addType =<< (split <$> unique))
   where
-    mkNames :: [[String]] -> Names
+    mkNames :: [[(String, AbiType)]] -> Names
     mkNames cs = Names { _ints = cs!!0
                        , _bools = cs!!1
                        , _bytes = cs!!2
@@ -259,6 +265,17 @@ genNames = mkNames <$> (split <$> unique)
         go n xs = ys : go n zs
           where (ys,zs) = splitAt n xs
 
+    addType :: Show a => [[a]] -> ExpoGen [[(a, AbiType)]]
+    addType (ints:bools:bytes:_) = do
+        ints' <- mapM (genVarType AInteger) ints
+        bools' <- mapM (genVarType ABoolean) bools
+        bytes' <- mapM (genVarType AByteStr) bytes
+        return [ints', bools', bytes']
+    addType l = error $ "Internal error: Expecting list with exactly three elements " <> show l
+
+    genVarType typ x = do
+      t <- genType typ
+      return (x, t)
 
 ident :: ExpoGen String
 ident = liftM2 (<>) (listOf1 (elements chars)) (listOf (elements $ chars <> digits))
